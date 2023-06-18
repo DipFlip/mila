@@ -24,7 +24,7 @@ emotion_colors = {
 }
 
 # Record audio
-samplerate = 44100  # Hertz
+samplerate = 16000  # Hertz
 duration = 1  # seconds
 filename = 'output.wav'
 
@@ -49,8 +49,12 @@ async def main():
             result = await socket.send_bytes(encoded_audio)
             print("Received response from Hume")
 
+            # interpret the emotion results
+            emotions = result['prosody']['predictions'][0]['emotions']
+            emotion_id = [4, 9, 22, 26, 38, 39]
+            emotion_values = [emotions[i]['score'] for i in emotion_id]
+
             # normalize the emotion values so they sum to 1
-            emotion_values = [result.emotions[i]['score'] for i in range(6)]
             sum_emotion_values = np.sum(emotion_values)
             normalized_emotion_values = np.divide(emotion_values, sum_emotion_values)
 
