@@ -69,4 +69,8 @@ async def main():
 
         except websockets.exceptions.ConnectionClosedError:
             print("Connection was closed unexpectedly. Trying to reconnect in 5 seconds...")
-            await
+            await asyncio.sleep(3)
+
+# Create an event loop and run 'main'
+loop = asyncio.get_event_loop()
+loop.run_until_complete(main())
