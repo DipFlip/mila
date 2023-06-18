@@ -1,3 +1,36 @@
+import asyncio
+import sounddevice as sd
+import soundfile as sf
+import base64
+import numpy as np
+from gpiozero import RGBLED
+from hume import HumeStreamClient
+from hume.models.config import BurstConfig, ProsodyConfig
+
+# define LED
+led = RGBLED(14, 15, 18, active_high=False)
+
+# define colors corresponding to each emotion (in RGB format)
+emotion_colors = {
+    'Anger': (1,0,0),         # red
+    'Calmness': (0,1,0),     # green
+    'Embarrassment': (1,1,0), # yellow
+    'Excitement': (1,0.5,0),  # orange
+    'Romance': (1,0,1),       # pink
+    'Sadness': (0,0,1)        # blue
+}
+
+# Record audio
+samplerate = 16000  # Hertz
+duration = 3  # seconds
+filename = 'output.wav'
+
+# Function to encode audio (base64 encoding)
+def encode_audio(filename):
+    with open(filename, 'rb') as audio_file:
+        return base64.b64encode(audio_file.read())
+
+# Hume API interaction
 async def main():
     client = HumeStreamClient("1Fuo6eVLpIj6ndhmC5VXllArH67eOcaSA0XLX3sHdU2SdEy5")
     burst_config = BurstConfig()
@@ -34,3 +67,8 @@ async def main():
 
         except websockets.exceptions.ConnectionClosedError:
             print("Connection was closed unexpectedly. Trying again...")
+
+
+# Create an event loop and run 'main'
+loop = asyncio.get_event_loop()
+loop.run_until_complete(main())
