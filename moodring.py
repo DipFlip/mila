@@ -1,7 +1,7 @@
 import asyncio
 import traceback
 import sounddevice as sd
-from scipy.io.wavfile import write
+import soundfile as sf
 import base64
 
 from hume import HumeStreamClient
@@ -9,12 +9,12 @@ from hume.models.config import BurstConfig, ProsodyConfig
 
 # Record audio
 samplerate = 44100  # Hertz
-duration = 4  # seconds
+duration = 3  # seconds
 filename = 'output.wav'
 print(f"Recording for {duration} seconds...")
 myrecording = sd.rec(int(samplerate * duration), samplerate=samplerate, channels=2, blocking=True)
 print("Recording complete. Saving the audio as output.wav")
-write(filename, samplerate, myrecording)
+sf.write(filename, myrecording, samplerate)
 
 # Function to encode audio (base64 encoding)
 def encode_audio(filename):
