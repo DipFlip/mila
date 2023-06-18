@@ -8,8 +8,8 @@ from hume import HumeStreamClient
 from hume.models.config import BurstConfig, ProsodyConfig
 
 # Record audio
-samplerate = 44100  # Hertz
-duration = 3  # seconds
+samplerate = 16000  # Hertz
+duration = 1  # seconds
 filename = 'output.wav'
 print(f"Recording for {duration} seconds...")
 myrecording = sd.rec(int(samplerate * duration), samplerate=samplerate, channels=2, blocking=True)
