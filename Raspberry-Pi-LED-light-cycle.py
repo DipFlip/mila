@@ -21,22 +21,22 @@ blue.start(0)
  
 def main(): 
     rgblight(0,0,0) 
-    print "Blue" 
+    print("Blue") 
     rgblight(0,0,100) 
     time.sleep(2) 
-    print "Red" 
+    print("Red") 
     rgblight(100,0,0) 
     time.sleep(2) 
-    print "Green" 
+    print("Green") 
     rgblight(0,100,0) 
     time.sleep(2) 
-    print "Cyan" 
+    print("Cyan") 
     rgblight(0,100,100) 
     time.sleep(2) 
-    print "Magenta" 
+    print("Magenta") 
     rgblight(100,0,100) 
     time.sleep(2) 
-    print "Yellow" 
+    print("Yellow") 
     rgblight(100,100,0) 
     time.sleep(2) 
     rgblight(0,0,0) 
@@ -45,6 +45,6 @@ def rgblight(rpwm,gpwm,bpwm):
         red.ChangeDutyCycle(rpwm) 
         green.ChangeDutyCycle(gpwm) 
         blue.ChangeDutyCycle(bpwm) 
-        
+
 if __name__== '__main__': 
         main() 
