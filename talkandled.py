@@ -25,7 +25,7 @@ emotion_colors = {
 
 # Record audio
 samplerate = 16000  # Hertz
-duration = 1  # seconds
+duration = 3  # seconds
 filename = 'output.wav'
 
 # Function to encode audio (base64 encoding)
@@ -50,7 +50,9 @@ async def main():
             print("Received response from Hume")
 
             # interpret the emotion results
-            # if 'predictions' in result['prosody']:
+            if not 'predictions' in result['prosody']:
+                print('no prediction')
+                continue
             emotions = result['prosody']['predictions'][0]['emotions']
             emotion_id = [4, 9, 22, 26, 38, 39]
             emotion_values = [emotions[i]['score'] for i in emotion_id]
@@ -58,6 +60,9 @@ async def main():
             for name, value in zip(emotion_colors.keys(), emotion_values):
                 print(f"{name}: {value}")
             # normalize the emotion values so they sum to 1
+            for i, v in enumerate(emotion_values):
+                if v < 0.15:
+                   emotion_values[i] = 0
             sum_emotion_values = np.sum(emotion_values)
             normalized_emotion_values = np.divide(emotion_values, sum_emotion_values)
 
