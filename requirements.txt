@@ -4,3 +4,4 @@ hume
 sounddevice
 scipy
 websockets
+pydub
