@@ -1,10 +1,7 @@
 import asyncio
-import traceback
 import sounddevice as sd
 import soundfile as sf
 import base64
-import colorsys
-import math
 import numpy as np
 from gpiozero import RGBLED
 from hume import HumeStreamClient
@@ -56,31 +53,15 @@ async def main():
             emotions = result['prosody']['predictions'][0]['emotions']
             emotion_id = [4, 9, 22, 26, 38, 39]
             emotion_values = [emotions[i]['score'] for i in emotion_id]
-            # print emotion names and values and color
+            # print emotion names and values
             for name, value in zip(emotion_colors.keys(), emotion_values):
                 print(f"{name}: {value}")
-            # normalize the emotion values so they sum to 1
-            for i, v in enumerate(emotion_values):
-                if v < 0.15:
-                   emotion_values[i] = 0
-            sum_emotion_values = np.sum(emotion_values)
-            normalized_emotion_values = np.divide(emotion_values, sum_emotion_values)
-
-            # calculate the new LED color as a weighted sum of the emotion colors
-            led_color = np.zeros(3)
-            for name, value in zip(emotion_colors.keys(), normalized_emotion_values):
-                led_color = np.add(led_color, np.multiply(emotion_colors[name], value))
-
-            # apply the new color to the LED
-            led.color = tuple(led_color)
-            
-            # # here, we create a pulsing effect by smoothly changing the lightness in the HLS color space
-            # for i in range(100):
-            #     # convert RGB to HLS, change the lightness, then convert back to RGB
-            #     h, l, s = colorsys.rgb_to_hls(*led.color)
-            #     l = 0.5 + 0.5 * math.sin(2 * math.pi * i / 100)
-            #     led.color = colorsys.hls_to_rgb(h, l, s)
-            #     await asyncio.sleep(0.03)
+            # find the highest emotion score
+            max_emotion_value = max(emotion_values)
+            # find the corresponding emotion name
+            max_emotion_name = list(emotion_colors.keys())[emotion_values.index(max_emotion_value)]
+            # set the LED color to the color of the emotion with the highest score
+            led.color = emotion_colors[max_emotion_name]
 
 # Create an event loop and run 'main'
 loop = asyncio.get_event_loop()
