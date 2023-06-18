@@ -50,29 +50,32 @@ async def main():
             print("Received response from Hume")
 
             # interpret the emotion results
-            emotions = result['prosody']['predictions'][0]['emotions']
-            emotion_id = [4, 9, 22, 26, 38, 39]
-            emotion_values = [emotions[i]['score'] for i in emotion_id]
+            if 'predictions' in result['prosody']:
+                emotions = result['prosody']['predictions'][0]['emotions']
+                emotion_id = [4, 9, 22, 26, 38, 39]
+                emotion_values = [emotions[i]['score'] for i in emotion_id]
+                # print emotion names and values and color
+                for name, value in zip(emotion_colors.keys(), emotion_values):
+                    print(f"{name}: {value}")
+                # normalize the emotion values so they sum to 1
+                sum_emotion_values = np.sum(emotion_values)
+                normalized_emotion_values = np.divide(emotion_values, sum_emotion_values)
 
-            # normalize the emotion values so they sum to 1
-            sum_emotion_values = np.sum(emotion_values)
-            normalized_emotion_values = np.divide(emotion_values, sum_emotion_values)
+                # calculate the new LED color as a weighted sum of the emotion colors
+                led_color = np.zeros(3)
+                for name, value in zip(emotion_colors.keys(), normalized_emotion_values):
+                    led_color = np.add(led_color, np.multiply(emotion_colors[name], value))
 
-            # calculate the new LED color as a weighted sum of the emotion colors
-            led_color = np.zeros(3)
-            for name, value in zip(emotion_colors.keys(), normalized_emotion_values):
-                led_color = np.add(led_color, np.multiply(emotion_colors[name], value))
-
-            # apply the new color to the LED
-            led.color = tuple(led_color)
-
-            # here, we create a pulsing effect by smoothly changing the lightness in the HLS color space
-            for i in range(100):
-                # convert RGB to HLS, change the lightness, then convert back to RGB
-                h, l, s = colorsys.rgb_to_hls(*led.color)
-                l = 0.5 + 0.5 * math.sin(2 * math.pi * i / 100)
-                led.color = colorsys.hls_to_rgb(h, l, s)
-                await asyncio.sleep(0.03)
+                # apply the new color to the LED
+                led.color = tuple(led_color)
+            
+            # # here, we create a pulsing effect by smoothly changing the lightness in the HLS color space
+            # for i in range(100):
+            #     # convert RGB to HLS, change the lightness, then convert back to RGB
+            #     h, l, s = colorsys.rgb_to_hls(*led.color)
+            #     l = 0.5 + 0.5 * math.sin(2 * math.pi * i / 100)
+            #     led.color = colorsys.hls_to_rgb(h, l, s)
+            #     await asyncio.sleep(0.03)
 
 # Create an event loop and run 'main'
 loop = asyncio.get_event_loop()
