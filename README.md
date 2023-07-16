@@ -1,5 +1,5 @@
 # Mila - give color to your authentic voice
-Repo for the Mila Team project during the Berkeley AI Hackathon 2023
+Repo for the [Mila Team](https://devpost.com/software/qw-qox4r8) project during the Berkeley AI Hackathon 2023
 
 1. Install prerequisites
 	-  For linux:
