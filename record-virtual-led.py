@@ -1,12 +1,11 @@
 import asyncio
-import sounddevice as sd
-import soundfile as sf
 import base64
 import websockets.exceptions
 import numpy as np
 from hume import HumeStreamClient
 from hume.models.config import BurstConfig, ProsodyConfig
 from led_controller import LEDController
+from recorder import Recorder
 led_controller = LEDController(is_virtual=True)
 
 # Define colors corresponding to each emotion (in RGB format)
@@ -24,31 +23,11 @@ samplerate = 16000  # Hertz
 duration = 3  # seconds
 filename = 'output.wav'
 
-# Function to record audio asynchronously
-async def record_audio(duration, samplerate, filename):
-    # Create an event to notify when recording is finished
-    finished_recording = asyncio.Event()
-
-    # Define the callback function for the InputStream
-    def callback(indata, frames, time, status):
-        if status:
-            print(status, file=sys.stderr)
-        sf.write(filename, indata, samplerate, format='WAV', subtype='PCM_16')
-        finished_recording.set()
-
-    # Open the InputStream with the callback
-    stream = sd.InputStream(samplerate=samplerate, channels=1, callback=callback)
-    with stream:
-        # Clear the event in case it was previously set
-        finished_recording.clear()
-        # Start the stream
-        stream.start()
-        # Record for the specified duration
-        await asyncio.sleep(duration)
-        # Stop the stream after recording
-        stream.stop()
-        # Wait for the callback to signal that it has finished writing the file
-        await finished_recording.wait()
+# Function to record audio asynchronously using Recorder
+async def record_audio(duration, filename):
+    recorder = Recorder(channels=1, rate=16000, frames_per_buffer=1024)
+    with recorder.open(filename, 'wb') as recfile:
+        recfile.record(duration)
 
 # Function to encode audio (base64 encoding)
 def encode_audio(filename):
@@ -66,11 +45,9 @@ async def main():
         try:
             async with client.connect([burst_config, prosody_config]) as socket:
                 while True:
-                    # Start recording in a non-blocking manner
-                    print(f"Recording for {duration} seconds...")
                     # Start recording and wait for it to finish
                     print(f"Recording for {duration} seconds...")
-                    await record_audio(duration, samplerate, filename)
+                    await record_audio(duration, filename)
                     print("Recording complete.")
                     encoded_audio = encode_audio(filename)
                     await socket.reset_stream()
