@@ -1,11 +1,12 @@
 import asyncio
+import sounddevice as sd
+import soundfile as sf
 import base64
 import websockets.exceptions
 import numpy as np
 from hume import HumeStreamClient
 from hume.models.config import BurstConfig, ProsodyConfig
 from led_controller import LEDController
-from recorder import Recorder
 led_controller = LEDController(is_virtual=True)
 
 # Define colors corresponding to each emotion (in RGB format)
@@ -23,11 +24,19 @@ samplerate = 16000  # Hertz
 duration = 3  # seconds
 filename = 'output.wav'
 
-# Function to record audio asynchronously using Recorder
-async def record_audio(duration, filename):
-    recorder = Recorder(channels=1, rate=16000, frames_per_buffer=1024)
-    with recorder.open(filename, 'wb') as recfile:
-        recfile.record(duration)
+# Function to record audio asynchronously
+async def record_audio(duration, samplerate):
+    loop = asyncio.get_running_loop()
+    event = asyncio.Event()
+
+    def callback(indata, frames, time, status):
+        if status:
+            print(status, file=sys.stderr)
+        loop.call_soon_threadsafe(event.set)
+
+    with sd.InputStream(samplerate=samplerate, channels=1, callback=callback):
+        await event.wait()  # Wait until the first callback is invoked
+        return sd.rec(int(samplerate * duration), samplerate=samplerate, channels=1)
 
 # Function to encode audio (base64 encoding)
 def encode_audio(filename):
@@ -45,10 +54,11 @@ async def main():
         try:
             async with client.connect([burst_config, prosody_config]) as socket:
                 while True:
-                    # Start recording and wait for it to finish
+                    # Start recording in a non-blocking manner
                     print(f"Recording for {duration} seconds...")
-                    await record_audio(duration, filename)
-                    print("Recording complete.")
+                    myrecording = await record_audio(duration, samplerate)
+                    print("Recording complete. Saving the audio as output.wav")
+                    sf.write(filename, myrecording, samplerate)
                     encoded_audio = encode_audio(filename)
                     await socket.reset_stream()
                     result = await socket.send_bytes(encoded_audio)
