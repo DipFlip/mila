@@ -3,7 +3,7 @@ import tkinter as tk
 import tkinter as tk
 
 class LEDController:
-    def __init__(self, led, is_virtual=False):
+    def __init__(self, led=None, is_virtual=False):
         self.led = led
         self.is_virtual = is_virtual
         if self.is_virtual:
@@ -45,8 +45,8 @@ class LEDController:
 
     async def update_led(self, target_color, steps=50, delay=0.1):
         if self.is_virtual:
-            current_color = self.led.itemcget(self.led.virtual_led, "fill")
-            current_color = self.led.winfo_rgb(current_color)  # Get RGB values of current color
+            current_color = self.canvas.itemcget(self.virtual_led, "fill")
+            current_color = self.root.winfo_rgb(current_color)  # Get RGB values of current color
             current_color = (current_color[0] // 256, current_color[1] // 256, current_color[2] // 256)
         else:
             current_color = self.led.color
@@ -54,8 +54,8 @@ class LEDController:
         for step in range(steps):
             new_color = self.interpolate_color(current_color, target_color, step, steps)
             if self.is_virtual:
-                self.led.itemconfig(self.led.virtual_led, fill=self.rgb_to_hex(new_color))
-                self.led.update()
+                self.canvas.itemconfig(self.virtual_led, fill=self.rgb_to_hex(new_color))
+                self.root.update()
             else:
                 self.led.color = new_color
             await asyncio.sleep(delay)
