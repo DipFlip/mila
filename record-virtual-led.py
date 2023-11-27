@@ -6,31 +6,8 @@ import websockets.exceptions
 import numpy as np
 from hume import HumeStreamClient
 from hume.models.config import BurstConfig, ProsodyConfig
-import tkinter as tk
-
-# Define colors corresponding to each emotion (in RGB format)
-emotion_colors = {
-    'Anger': (255, 0, 0),        # red
-    'Calmness': (0, 255, 0),     # green
-    'Embarrassment': (255, 255, 0), # yellow
-    'Excitement': (255, 128, 0),  # orange
-    'Romance': (255, 0, 255),     # pink
-    'Sadness': (0, 0, 255)        # blue
-}
-
 from led_controller import LEDController
-
-# Setup tkinter for the virtual LED
-root = tk.Tk()
-root.title("Virtual LED")
-canvas = tk.Canvas(root, width=200, height=200)
-canvas.pack()
-virtual_led = canvas.create_oval(50, 50, 150, 150, fill="white")
-led_controller = LEDController(canvas, is_virtual=True, virtual_led=virtual_led)
-
-# Label for displaying the emotion name
-emotion_label = tk.Label(root, text="", font=("Helvetica", 14))
-emotion_label.pack()
+led_controller = LEDController(is_virtual=True)
 
 
 # Record audio
