@@ -24,6 +24,20 @@ samplerate = 16000  # Hertz
 duration = 3  # seconds
 filename = 'output.wav'
 
+# Function to record audio asynchronously
+async def record_audio(duration, samplerate):
+    loop = asyncio.get_running_loop()
+    event = asyncio.Event()
+
+    def callback(indata, frames, time, status):
+        if status:
+            print(status, file=sys.stderr)
+        loop.call_soon_threadsafe(event.set)
+
+    with sd.InputStream(samplerate=samplerate, channels=1, callback=callback):
+        await event.wait()  # Wait until the first callback is invoked
+        return sd.rec(int(samplerate * duration), samplerate=samplerate, channels=1)
+
 # Function to encode audio (base64 encoding)
 def encode_audio(filename):
     with open(filename, 'rb') as audio_file:
@@ -40,8 +54,9 @@ async def main():
         try:
             async with client.connect([burst_config, prosody_config]) as socket:
                 while True:
+                    # Start recording in a non-blocking manner
                     print(f"Recording for {duration} seconds...")
-                    myrecording = sd.rec(int(samplerate * duration), samplerate=samplerate, channels=1, blocking=True)
+                    myrecording = await record_audio(duration, samplerate)
                     print("Recording complete. Saving the audio as output.wav")
                     sf.write(filename, myrecording, samplerate)
                     encoded_audio = encode_audio(filename)
