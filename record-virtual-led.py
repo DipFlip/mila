@@ -4,28 +4,34 @@ import soundfile as sf
 import base64
 import websockets.exceptions
 import numpy as np
+import threading
 from hume import HumeStreamClient
 from hume.models.config import BurstConfig, ProsodyConfig
 from led_controller import LEDController
+
 led_controller = LEDController(is_virtual=True)
 
-# Define colors corresponding to each emotion (in RGB format)
 emotion_colors = {
-    'Anger': (255, 0, 0),        # red
-    'Calmness': (0, 255, 0),     # green
-    'Embarrassment': (255, 255, 0), # yellow
-    'Excitement': (255, 128, 0),  # orange
-    'Romance': (255, 0, 255),     # pink
-    'Sadness': (0, 0, 255)        # blue
+    'Anger': (255, 0, 0),
+    'Calmness': (0, 255, 0),
+    'Embarrassment': (255, 255, 0),
+    'Excitement': (255, 128, 0),
+    'Romance': (255, 0, 255),
+    'Sadness': (0, 0, 255)
 }
 
-# Record audio
 samplerate = 16000  # Hertz
 duration = 3  # seconds
 filename = 'output.wav'
 
-# Function to record audio asynchronously
-async def record_audio(duration, samplerate):
+# Function to record audio in a separate thread
+def thread_record_audio(duration, samplerate, filename):
+    myrecording = sd.rec(int(samplerate * duration), samplerate=samplerate, channels=1, blocking=False)
+    # await asyncio.sleep(duration)
+    print("Recording complete. Saving the audio as output.wav")
+    sf.write(filename, myrecording, samplerate)
+
+async def record_audio(duration, samplerate, filename):
     loop = asyncio.get_running_loop()
     event = asyncio.Event()
 
@@ -36,8 +42,9 @@ async def record_audio(duration, samplerate):
 
     with sd.InputStream(samplerate=samplerate, channels=1, callback=callback):
         await event.wait()  # Wait until the first callback is invoked
-        return sd.rec(int(samplerate * duration), samplerate=samplerate, channels=1)
-
+        myrecording = sd.rec(int(samplerate * duration), samplerate=samplerate, channels=1)
+        await asyncio.sleep(duration)  # Wait for the duration of the recording
+        sf.write(filename, myrecording, samplerate)
 # Function to encode audio (base64 encoding)
 def encode_audio(filename):
     with open(filename, 'rb') as audio_file:
@@ -45,7 +52,7 @@ def encode_audio(filename):
 
 # Hume API interaction
 async def main():
-    led_controller.start_update_task()  # Start the update task inside the main coroutine
+    led_controller.start_update_task()
     client = HumeStreamClient("1Fuo6eVLpIj6ndhmC5VXllArH67eOcaSA0XLX3sHdU2SdEy5")
     burst_config = BurstConfig()
     prosody_config = ProsodyConfig()
@@ -54,31 +61,30 @@ async def main():
         try:
             async with client.connect([burst_config, prosody_config]) as socket:
                 while True:
-                    # Start recording in a non-blocking manner
                     print(f"Recording for {duration} seconds...")
-                    myrecording = await record_audio(duration, samplerate)
-                    print("Recording complete. Saving the audio as output.wav")
-                    sf.write(filename, myrecording, samplerate)
+                    # Create and start the recording thread
+                    # recording_thread = threading.Thread(target=thread_record_audio, args=(duration, samplerate, filename))
+                    # recording_thread.start()
+                    await record_audio(duration, samplerate, filename)
+
+                    # Join the thread to ensure it completes
+                    # recording_thread.join()
+
                     encoded_audio = encode_audio(filename)
                     await socket.reset_stream()
                     result = await socket.send_bytes(encoded_audio)
                     print("Received response from Hume")
 
-                    # Interpret the emotion results
                     if not 'predictions' in result['prosody']:
                         print('no prediction')
                         continue
                     emotions = result['prosody']['predictions'][0]['emotions']
                     emotion_id = [4, 9, 22, 26, 38, 39]
                     emotion_values = [emotions[i]['score'] for i in emotion_id]
-                    # Print emotion names and values
                     for name, value in zip(emotion_colors.keys(), emotion_values):
                         print(f"{name}: {value}")
-                    # Find the highest emotion score
                     max_emotion_value = max(emotion_values)
-                    # Find the corresponding emotion name
                     max_emotion_name = list(emotion_colors.keys())[emotion_values.index(max_emotion_value)]
-                    # Update the virtual LED color smoothly and set the emotion name
                     led_controller.set_goal_color(emotion_colors[max_emotion_name], emotion_name=max_emotion_name)
 
         except websockets.exceptions.ConnectionClosedError:
