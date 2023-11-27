@@ -15,12 +15,12 @@ led_controller = LEDController(led)
 
 # define colors corresponding to each emotion (in RGB format)
 emotion_colors = {
-    'Anger': (1,0,0),         # red
-    'Calmness': (0,1,0),     # green
-    'Embarrassment': (1,1,0), # yellow
-    'Excitement': (1,0.5,0),  # orange
-    'Romance': (1,0,1),       # pink
-    'Sadness': (0,0,1)        # blue
+    'Anger': (255, 0, 0),
+    'Calmness': (0, 255, 0),
+    'Embarrassment': (255, 255, 0),
+    'Excitement': (255, 128, 0),
+    'Romance': (255, 0, 255),
+    'Sadness': (0, 0, 255)
 }
 
 samplerate = 16000  # Hertz
