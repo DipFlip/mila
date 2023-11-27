@@ -1,10 +1,28 @@
 import asyncio
+import tkinter as tk
 
 class LEDController:
-    def __init__(self, led, is_virtual=False, virtual_led=None):
+    def __init__(self, led, is_virtual=False):
         self.led = led
         self.is_virtual = is_virtual
-        self.virtual_led = virtual_led
+        if self.is_virtual:
+            self.root = tk.Tk()
+            self.root.title("Virtual LED")
+            self.canvas = tk.Canvas(self.root, width=200, height=200)
+            self.canvas.pack()
+            self.virtual_led = self.canvas.create_oval(50, 50, 150, 150, fill="white")
+            self.emotion_label = tk.Label(self.root, text="", font=("Helvetica", 14))
+            self.emotion_label.pack()
+            self.loop = asyncio.get_event_loop()
+            self.root.after(100, self.run_asyncio_tasks)
+            self.root.mainloop()
+
+    def run_asyncio_tasks(self):
+        try:
+            self.loop.call_soon(asyncio.ensure_future, self.main())
+            self.loop.run_forever()
+        except RuntimeError as e:
+            print("Asyncio loop stopped: ", e)
 
     async def update_led(self, target_color, steps=50, delay=0.1):
         if self.is_virtual:
