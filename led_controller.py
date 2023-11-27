@@ -42,7 +42,8 @@ class LEDController:
                         self.canvas.itemconfig(self.virtual_led, fill=self.rgb_to_hex(modulated_color))
                         self.root.update()
                     else:
-                        self.led.color = modulated_color
+                        normalized_color = [c / 255 for c in modulated_color]
+                        self.led.color = normalized_color
                     self.current_color = modulated_color
                     print(f"Goal color: {self.current_goal_color}")
                     await asyncio.sleep(delay)
