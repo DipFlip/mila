@@ -42,7 +42,7 @@ async def main():
             async with client.connect([burst_config, prosody_config]) as socket:
                 while True:
                     print(f"Recording for {duration} seconds...")
-                    myrecording = sd.rec(int(samplerate * duration), samplerate=samplerate, channels=2, blocking=True)
+                    myrecording = sd.rec(int(samplerate * duration), samplerate=samplerate, channels=1, blocking=True)
                     print("Recording complete. Saving the audio as output.wav")
                     sf.write(filename, myrecording, samplerate)
                     encoded_audio = encode_audio(filename)
