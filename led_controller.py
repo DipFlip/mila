@@ -6,6 +6,17 @@ class LEDController:
     def __init__(self, led=None, is_virtual=False):
         self.led = led
         self.is_virtual = is_virtual
+        if self.is_virtual:
+            self.root = tk.Tk()
+            self.root.title("Virtual LED")
+            self.canvas = tk.Canvas(self.root, width=200, height=200)
+            self.canvas.pack()
+            self.virtual_led = self.canvas.create_oval(50, 50, 150, 150, fill="white")
+            self.emotion_label = tk.Label(self.root, text="", font=("Helvetica", 14))
+            self.emotion_label.pack()
+            self.loop = asyncio.get_event_loop()
+            self.root.after(100, self.run_asyncio_tasks)
+            self.root.mainloop()
 
 
     async def update_led(self, target_color, steps=50, delay=0.1):
