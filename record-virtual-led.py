@@ -25,18 +25,30 @@ duration = 3  # seconds
 filename = 'output.wav'
 
 # Function to record audio asynchronously
-async def record_audio(duration, samplerate):
-    loop = asyncio.get_running_loop()
-    event = asyncio.Event()
+async def record_audio(duration, samplerate, filename):
+    # Create an event to notify when recording is finished
+    finished_recording = asyncio.Event()
 
+    # Define the callback function for the InputStream
     def callback(indata, frames, time, status):
         if status:
             print(status, file=sys.stderr)
-        loop.call_soon_threadsafe(event.set)
+        sf.write(filename, indata, samplerate, format='WAV', subtype='PCM_16')
+        finished_recording.set()
 
-    with sd.InputStream(samplerate=samplerate, channels=1, callback=callback):
-        await event.wait()  # Wait until the first callback is invoked
-        return sd.rec(int(samplerate * duration), samplerate=samplerate, channels=1)
+    # Open the InputStream with the callback
+    stream = sd.InputStream(samplerate=samplerate, channels=1, callback=callback)
+    with stream:
+        # Clear the event in case it was previously set
+        finished_recording.clear()
+        # Start the stream
+        stream.start()
+        # Record for the specified duration
+        await asyncio.sleep(duration)
+        # Stop the stream after recording
+        stream.stop()
+        # Wait for the callback to signal that it has finished writing the file
+        await finished_recording.wait()
 
 # Function to encode audio (base64 encoding)
 def encode_audio(filename):
@@ -56,9 +68,10 @@ async def main():
                 while True:
                     # Start recording in a non-blocking manner
                     print(f"Recording for {duration} seconds...")
-                    myrecording = await record_audio(duration, samplerate)
-                    print("Recording complete. Saving the audio as output.wav")
-                    sf.write(filename, myrecording, samplerate)
+                    # Start recording and wait for it to finish
+                    print(f"Recording for {duration} seconds...")
+                    await record_audio(duration, samplerate, filename)
+                    print("Recording complete.")
                     encoded_audio = encode_audio(filename)
                     await socket.reset_stream()
                     result = await socket.send_bytes(encoded_audio)
