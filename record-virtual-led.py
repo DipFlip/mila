@@ -61,3 +61,6 @@ async def main():
             print("Connection was closed unexpectedly. Trying to reconnect in 5 seconds...")
             await asyncio.sleep(3)
 
+# Run the 'main' coroutine
+if __name__ == '__main__':
+    asyncio.run(main())
