@@ -26,8 +26,7 @@ root.title("Virtual LED")
 canvas = tk.Canvas(root, width=200, height=200)
 canvas.pack()
 virtual_led = canvas.create_oval(50, 50, 150, 150, fill="white")
-led_controller = LEDController(canvas, is_virtual=True)
-led_controller.virtual_led = virtual_led  # Assign the virtual LED object to the controller
+led_controller = LEDController(canvas, is_virtual=True, virtual_led=virtual_led)
 
 # Label for displaying the emotion name
 emotion_label = tk.Label(root, text="", font=("Helvetica", 14))

@@ -1,9 +1,10 @@
 import asyncio
 
 class LEDController:
-    def __init__(self, led, is_virtual=False):
+    def __init__(self, led, is_virtual=False, virtual_led=None):
         self.led = led
         self.is_virtual = is_virtual
+        self.virtual_led = virtual_led
 
     async def update_led(self, target_color, steps=50, delay=0.1):
         if self.is_virtual:
