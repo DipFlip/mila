@@ -9,6 +9,15 @@ from hume.models.config import BurstConfig, ProsodyConfig
 from led_controller import LEDController
 led_controller = LEDController(is_virtual=True)
 
+# Define colors corresponding to each emotion (in RGB format)
+emotion_colors = {
+    'Anger': (255, 0, 0),        # red
+    'Calmness': (0, 255, 0),     # green
+    'Embarrassment': (255, 255, 0), # yellow
+    'Excitement': (255, 128, 0),  # orange
+    'Romance': (255, 0, 255),     # pink
+    'Sadness': (0, 0, 255)        # blue
+}
 
 # Record audio
 samplerate = 16000  # Hertz
@@ -54,8 +63,7 @@ async def main():
                     # Find the corresponding emotion name
                     max_emotion_name = list(emotion_colors.keys())[emotion_values.index(max_emotion_value)]
                     # Update the virtual LED color smoothly and set the emotion name
-                    await led_controller.update_led(emotion_colors[max_emotion_name])
-                    emotion_label.config(text=max_emotion_name)
+                    await led_controller.update_led(emotion_colors[max_emotion_name], emotion_name=max_emotion_name)
 
         except websockets.exceptions.ConnectionClosedError:
             print("Connection was closed unexpectedly. Trying to reconnect in 5 seconds...")

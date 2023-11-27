@@ -14,13 +14,10 @@ class LEDController:
             self.virtual_led = self.canvas.create_oval(50, 50, 150, 150, fill="white")
             self.emotion_label = tk.Label(self.root, text="", font=("Helvetica", 14))
             self.emotion_label.pack()
-            self.loop = asyncio.get_event_loop()
-            self.root.after(100, self.run_asyncio_tasks)
-            self.root.mainloop()
 
-
-    async def update_led(self, target_color, steps=50, delay=0.1):
+    async def update_led(self, target_color, steps=50, delay=0.1, emotion_name=""):
         if self.is_virtual:
+            self.emotion_label.config(text=emotion_name)
             current_color = self.canvas.itemcget(self.virtual_led, "fill")
             current_color = self.root.winfo_rgb(current_color)  # Get RGB values of current color
             current_color = (current_color[0] // 256, current_color[1] // 256, current_color[2] // 256)
