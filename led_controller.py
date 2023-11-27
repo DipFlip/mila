@@ -1,7 +1,6 @@
 import asyncio
 import tkinter as tk
-import tkinter as tk
-
+import numpy as np
 class LEDController:
     def __init__(self, led=None, is_virtual=False, pulse_frequency=2):
         self.led = led
