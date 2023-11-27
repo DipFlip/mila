@@ -31,6 +31,7 @@ def encode_audio(filename):
 
 # Hume API interaction
 async def main():
+    led_controller.start_update_task()  # Start the update task inside the main coroutine
     client = HumeStreamClient("1Fuo6eVLpIj6ndhmC5VXllArH67eOcaSA0XLX3sHdU2SdEy5")
     burst_config = BurstConfig()
     prosody_config = ProsodyConfig()
@@ -71,5 +72,4 @@ async def main():
 
 # Run the 'main' coroutine
 if __name__ == '__main__':
-    led_controller.start_update_task()  # Start the update task here
     asyncio.run(main())
