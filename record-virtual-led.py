@@ -61,19 +61,3 @@ async def main():
             print("Connection was closed unexpectedly. Trying to reconnect in 5 seconds...")
             await asyncio.sleep(3)
 
-# Function to run asyncio event loop tasks from Tkinter's event loop
-def run_asyncio_tasks():
-    try:
-        loop.call_soon(asyncio.ensure_future, main())
-        loop.run_forever()
-    except RuntimeError as e:
-        print("Asyncio loop stopped: ", e)
-
-# Create an asyncio event loop
-loop = asyncio.get_event_loop()
-
-# Schedule the run_asyncio_tasks function to be called by Tkinter's event loop
-root.after(100, run_asyncio_tasks)
-
-# Start the Tkinter mainloop in the main thread
-root.mainloop()
