@@ -4,12 +4,14 @@ import soundfile as sf
 import base64
 import websockets.exceptions
 import numpy as np
+from led_controller import LEDController
 from gpiozero import RGBLED
 from hume import HumeStreamClient
 from hume.models.config import BurstConfig, ProsodyConfig
 
 # define LED
 led = RGBLED(14, 15, 18, active_high=False)
+led_controller = LEDController(led)
 
 # define colors corresponding to each emotion (in RGB format)
 emotion_colors = {
@@ -64,8 +66,8 @@ async def main():
                     max_emotion_value = max(emotion_values)
                     # find the corresponding emotion name
                     max_emotion_name = list(emotion_colors.keys())[emotion_values.index(max_emotion_value)]
-                    # set the LED color to the color of the emotion with the highest score
-                    led.color = emotion_colors[max_emotion_name]
+                    # Update the LED color smoothly to the color of the emotion with the highest score
+                    await led_controller.update_led(emotion_colors[max_emotion_name])
 
         except websockets.exceptions.ConnectionClosedError:
             print("Connection was closed unexpectedly. Trying to reconnect in 5 seconds...")

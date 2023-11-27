@@ -18,12 +18,16 @@ emotion_colors = {
     'Sadness': (0, 0, 255)        # blue
 }
 
+from led_controller import LEDController
+
 # Setup tkinter for the virtual LED
 root = tk.Tk()
 root.title("Virtual LED")
 canvas = tk.Canvas(root, width=200, height=200)
 canvas.pack()
 virtual_led = canvas.create_oval(50, 50, 150, 150, fill="white")
+led_controller = LEDController(canvas, is_virtual=True)
+led_controller.virtual_led = virtual_led  # Assign the virtual LED object to the controller
 
 # Label for displaying the emotion name
 emotion_label = tk.Label(root, text="", font=("Helvetica", 14))
@@ -92,8 +96,9 @@ async def main():
                     max_emotion_value = max(emotion_values)
                     # Find the corresponding emotion name
                     max_emotion_name = list(emotion_colors.keys())[emotion_values.index(max_emotion_value)]
-                    # Update the virtual LED color and emotion name
-                    await update_virtual_led(emotion_colors[max_emotion_name], max_emotion_name)
+                    # Update the virtual LED color smoothly and set the emotion name
+                    await led_controller.update_led(emotion_colors[max_emotion_name])
+                    emotion_label.config(text=max_emotion_name)
 
         except websockets.exceptions.ConnectionClosedError:
             print("Connection was closed unexpectedly. Trying to reconnect in 5 seconds...")
