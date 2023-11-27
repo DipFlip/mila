@@ -32,25 +32,6 @@ led_controller = LEDController(canvas, is_virtual=True, virtual_led=virtual_led)
 emotion_label = tk.Label(root, text="", font=("Helvetica", 14))
 emotion_label.pack()
 
-def interpolate_color(start_color, end_color, step, total_steps):
-    delta = [(ec - sc) / total_steps for sc, ec in zip(start_color, end_color)]
-    return [int(sc + delta[i] * step) for i, sc in enumerate(start_color)]
-
-def rgb_to_hex(rgb):
-    return "#{:02x}{:02x}{:02x}".format(*rgb)
-
-async def update_virtual_led(target_color, emotion_name):
-    current_color = canvas.itemcget(virtual_led, "fill")
-    current_color = root.winfo_rgb(current_color)  # Get RGB values of current color
-    current_color = (current_color[0] // 256, current_color[1] // 256, current_color[2] // 256)
-    
-    steps = 50  # Number of steps in the transition
-    for step in range(steps):
-        new_color = interpolate_color(current_color, target_color, step, steps)
-        canvas.itemconfig(virtual_led, fill=rgb_to_hex(new_color))
-        emotion_label.config(text=emotion_name)
-        root.update()
-        await asyncio.sleep(0.05)  # Wait a bit before next update
 
 # Record audio
 samplerate = 16000  # Hertz
