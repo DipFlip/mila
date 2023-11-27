@@ -63,7 +63,7 @@ async def main():
                     # Find the corresponding emotion name
                     max_emotion_name = list(emotion_colors.keys())[emotion_values.index(max_emotion_value)]
                     # Update the virtual LED color smoothly and set the emotion name
-                    await led_controller.update_led(emotion_colors[max_emotion_name], emotion_name=max_emotion_name)
+                    led_controller.set_goal_color(emotion_colors[max_emotion_name], emotion_name=max_emotion_name)
 
         except websockets.exceptions.ConnectionClosedError:
             print("Connection was closed unexpectedly. Trying to reconnect in 5 seconds...")

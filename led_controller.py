@@ -29,7 +29,7 @@ class LEDController:
                     current_color = self.led.color
 
                 for step in range(steps):
-                    if self.current_goal_color != target_color:
+                    if self.current_goal_color != self.current_goal_color:
                         break  # If goal color changed, restart the loop
                     new_color = self.interpolate_color(current_color, self.current_goal_color, step, steps)
                     if self.is_virtual:
