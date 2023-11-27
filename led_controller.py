@@ -6,6 +6,8 @@ class LEDController:
     def __init__(self, led=None, is_virtual=False):
         self.led = led
         self.is_virtual = is_virtual
+        self.current_goal_color = None
+        self.update_task = None
         if self.is_virtual:
             self.root = tk.Tk()
             self.root.title("Virtual LED")
@@ -15,23 +17,36 @@ class LEDController:
             self.emotion_label = tk.Label(self.root, text="", font=("Helvetica", 14))
             self.emotion_label.pack()
 
-    async def update_led(self, target_color, steps=50, delay=0.1, emotion_name=""):
-        if self.is_virtual:
-            self.emotion_label.config(text=emotion_name)
-            current_color = self.canvas.itemcget(self.virtual_led, "fill")
-            current_color = self.root.winfo_rgb(current_color)  # Get RGB values of current color
-            current_color = (current_color[0] // 256, current_color[1] // 256, current_color[2] // 256)
-        else:
-            current_color = self.led.color
+    async def update_led(self, steps=50, delay=0.1):
+        while True:
+            if self.current_goal_color is not None:
+                if self.is_virtual:
+                    self.emotion_label.config(text=self.current_emotion_name)
+                    current_color = self.canvas.itemcget(self.virtual_led, "fill")
+                    current_color = self.root.winfo_rgb(current_color)  # Get RGB values of current color
+                    current_color = (current_color[0] // 256, current_color[1] // 256, current_color[2] // 256)
+                else:
+                    current_color = self.led.color
 
-        for step in range(steps):
-            new_color = self.interpolate_color(current_color, target_color, step, steps)
-            if self.is_virtual:
-                self.canvas.itemconfig(self.virtual_led, fill=self.rgb_to_hex(new_color))
-                self.root.update()
+                for step in range(steps):
+                    if self.current_goal_color != target_color:
+                        break  # If goal color changed, restart the loop
+                    new_color = self.interpolate_color(current_color, self.current_goal_color, step, steps)
+                    if self.is_virtual:
+                        self.canvas.itemconfig(self.virtual_led, fill=self.rgb_to_hex(new_color))
+                        self.root.update()
+                    else:
+                        self.led.color = new_color
+                    await asyncio.sleep(delay)
+                await asyncio.sleep(delay)  # Wait before checking for a new color
             else:
-                self.led.color = new_color
-            await asyncio.sleep(delay)
+                await asyncio.sleep(0.1)  # No goal color set, wait before checking again
+
+    def set_goal_color(self, color, emotion_name=""):
+        self.current_goal_color = color
+        self.current_emotion_name = emotion_name
+        if self.update_task is None or self.update_task.done():
+            self.update_task = asyncio.create_task(self.update_led())
 
     @staticmethod
     def interpolate_color(start_color, end_color, step, total_steps):
