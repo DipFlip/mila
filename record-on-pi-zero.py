@@ -27,13 +27,7 @@ samplerate = 16000  # Hertz
 duration = 3  # seconds
 filename = 'output.wav'
 
-# Function to record audio in a separate thread
-def thread_record_audio(duration, samplerate, filename):
-    myrecording = sd.rec(int(samplerate * duration), samplerate=samplerate, channels=1, blocking=False)
-    # await asyncio.sleep(duration)
-    print("Recording complete. Saving the audio as output.wav")
-    sf.write(filename, myrecording, samplerate)
-
+# Function to record audio asynchronously
 async def record_audio(duration, samplerate, filename):
     loop = asyncio.get_running_loop()
     event = asyncio.Event()
@@ -56,6 +50,7 @@ def encode_audio(filename):
 
 # Hume API interaction
 async def main():
+    led_controller.start_update_task()
     client = HumeStreamClient("1Fuo6eVLpIj6ndhmC5VXllArH67eOcaSA0XLX3sHdU2SdEy5")
     burst_config = BurstConfig()
     prosody_config = ProsodyConfig()
