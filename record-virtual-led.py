@@ -51,7 +51,7 @@ async def update_virtual_led(target_color, emotion_name):
         canvas.itemconfig(virtual_led, fill=rgb_to_hex(new_color))
         emotion_label.config(text=emotion_name)
         root.update()
-        await asyncio.sleep(0.5)  # Wait a bit before next update
+        await asyncio.sleep(0.05)  # Wait a bit before next update
 
 # Record audio
 samplerate = 16000  # Hertz
