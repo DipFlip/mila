@@ -7,6 +7,7 @@ class LEDController:
         self.led = led
         self.is_virtual = is_virtual
         self.current_goal_color = None
+        self.current_color = (0, 0, 0)
         self.update_task = None
         if self.is_virtual:
             self.root = tk.Tk()
@@ -17,26 +18,22 @@ class LEDController:
             self.emotion_label = tk.Label(self.root, text="", font=("Helvetica", 14))
             self.emotion_label.pack()
 
-    async def update_led(self, steps=50, delay=0.1):
+    async def update_led(self, steps=20, delay=0.1):
         while True:
             if self.current_goal_color is not None:
-                if self.is_virtual:
-                    self.emotion_label.config(text=self.current_emotion_name)
-                    current_color = self.canvas.itemcget(self.virtual_led, "fill")
-                    current_color = self.root.winfo_rgb(current_color)  # Get RGB values of current color
-                    current_color = (current_color[0] // 256, current_color[1] // 256, current_color[2] // 256)
-                else:
-                    current_color = self.led.color
 
                 for step in range(steps):
                     if self.current_goal_color != self.current_goal_color:
                         break  # If goal color changed, restart the loop
-                    new_color = self.interpolate_color(current_color, self.current_goal_color, step, steps)
+                    new_color = self.interpolate_color(self.current_color, self.current_goal_color, step, steps)
                     if self.is_virtual:
+                        self.emotion_label.config(text=self.current_emotion_name)
                         self.canvas.itemconfig(self.virtual_led, fill=self.rgb_to_hex(new_color))
                         self.root.update()
                     else:
                         self.led.color = new_color
+                    self.current_color = new_color
+                    print(f"Current color: {self.current_color}")
                     await asyncio.sleep(delay)
                 await asyncio.sleep(delay)  # Wait before checking for a new color
             else:
