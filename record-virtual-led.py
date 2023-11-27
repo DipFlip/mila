@@ -10,12 +10,12 @@ import tkinter as tk
 
 # Define colors corresponding to each emotion (in RGB format)
 emotion_colors = {
-    'Anger': "red",
-    'Calmness': "green",
-    'Embarrassment': "yellow",
-    'Excitement': "orange",
-    'Romance': "pink",
-    'Sadness': "blue"
+    'Anger': (255, 0, 0),        # red
+    'Calmness': (0, 255, 0),     # green
+    'Embarrassment': (255, 255, 0), # yellow
+    'Excitement': (255, 128, 0),  # orange
+    'Romance': (255, 0, 255),     # pink
+    'Sadness': (0, 0, 255)        # blue
 }
 
 # Setup tkinter for the virtual LED
@@ -23,16 +23,31 @@ root = tk.Tk()
 root.title("Virtual LED")
 canvas = tk.Canvas(root, width=200, height=200)
 canvas.pack()
-virtual_led = canvas.create_oval(50, 50, 150, 150, fillw="hite")
+virtual_led = canvas.create_oval(50, 50, 150, 150, fill="white")
 
 # Label for displaying the emotion name
 emotion_label = tk.Label(root, text="", font=("Helvetica", 14))
 emotion_label.pack()
 
-def update_virtual_led(color, emotion_name):
-    canvas.itemconfig(virtual_led, fill=color)
-    emotion_label.config(text=emotion_name)
-    root.update()
+def interpolate_color(start_color, end_color, step, total_steps):
+    delta = [(ec - sc) / total_steps for sc, ec in zip(start_color, end_color)]
+    return [int(sc + delta[i] * step) for i, sc in enumerate(start_color)]
+
+def rgb_to_hex(rgb):
+    return "#{:02x}{:02x}{:02x}".format(*rgb)
+
+async def update_virtual_led(target_color, emotion_name):
+    current_color = canvas.itemcget(virtual_led, "fill")
+    current_color = root.winfo_rgb(current_color)  # Get RGB values of current color
+    current_color = (current_color[0] // 256, current_color[1] // 256, current_color[2] // 256)
+    
+    steps = 50  # Number of steps in the transition
+    for step in range(steps):
+        new_color = interpolate_color(current_color, target_color, step, steps)
+        canvas.itemconfig(virtual_led, fill=rgb_to_hex(new_color))
+        emotion_label.config(text=emotion_name)
+        root.update()
+        await asyncio.sleep(0.5)  # Wait a bit before next update
 
 # Record audio
 samplerate = 16000  # Hertz
@@ -78,7 +93,7 @@ async def main():
                     # Find the corresponding emotion name
                     max_emotion_name = list(emotion_colors.keys())[emotion_values.index(max_emotion_value)]
                     # Update the virtual LED color and emotion name
-                    update_virtual_led(emotion_colors[max_emotion_name], max_emotion_name)
+                    await update_virtual_led(emotion_colors[max_emotion_name], max_emotion_name)
 
         except websockets.exceptions.ConnectionClosedError:
             print("Connection was closed unexpectedly. Trying to reconnect in 5 seconds...")
