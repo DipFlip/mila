@@ -19,7 +19,7 @@ class LEDController:
             self.virtual_led = self.canvas.create_oval(50, 50, 150, 150, fill="white")
             self.emotion_label = tk.Label(self.root, text="", font=("Helvetica", 14))
             self.emotion_label.pack()
-            self.start_update_task()
+            # self.start_update_task()  # Removed this line
 
     def start_update_task(self):
         if self.update_task is None or self.update_task.done():

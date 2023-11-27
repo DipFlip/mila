@@ -71,4 +71,5 @@ async def main():
 
 # Run the 'main' coroutine
 if __name__ == '__main__':
+    led_controller.start_update_task()  # Start the update task here
     asyncio.run(main())
