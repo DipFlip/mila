@@ -13,4 +13,6 @@ Repo for the [Mila Team](https://devpost.com/software/qw-qox4r8) project during 
 conda create --name mila python ipython jupyter
 conda activate mila
 pip install -r requirements.txt
+
 ```
+3. Set the `HUME_STREAM_CLIENT_KEY` variable in `.env` to your Hume API key. 

@@ -8,6 +8,10 @@ import threading
 from hume import HumeStreamClient
 from hume.models.config import BurstConfig, ProsodyConfig
 from led_controller import LEDController
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 led_controller = LEDController(is_virtual=True)
 
@@ -50,10 +54,15 @@ def encode_audio(filename):
     with open(filename, 'rb') as audio_file:
         return base64.b64encode(audio_file.read())
 
+load_dotenv()
+
+# Get the HumeStreamClient key from the environment variable
+hume_stream_client_key = os.getenv("HUME_STREAM_CLIENT_KEY")
+
 # Hume API interaction
 async def main():
     led_controller.start_update_task()
-    client = HumeStreamClient("1Fuo6eVLpIj6ndhmC5VXllArH67eOcaSA0XLX3sHdU2SdEy5")
+    client = HumeStreamClient(hume_stream_client_key)
     burst_config = BurstConfig()
     prosody_config = ProsodyConfig()
 
