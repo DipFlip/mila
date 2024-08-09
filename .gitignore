@@ -1,3 +1,4 @@
 output.wav
 .aider*
 __pycache__/
+.env
