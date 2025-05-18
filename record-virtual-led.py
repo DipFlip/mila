@@ -34,6 +34,9 @@ STEP_DURATION = 1    # seconds: How often to analyze a new window
 WINDOW_SAMPLES = SAMPLERATE * WINDOW_DURATION
 FILENAME = 'output_chunk.wav' # Filename for temporary audio chunks
 
+EMOTION_THRESHOLD = 0.1
+WHITE_COLOR = (255, 255, 255)
+
 # Global circular buffer for audio
 audio_buffer = collections.deque(maxlen=WINDOW_SAMPLES)
 
@@ -157,15 +160,47 @@ async def main():
                         if hasattr(led_controller, 'update_emotion_bars'):
                             led_controller.update_emotion_bars(emotion_bar_data)
                         
-                        if all_scores_for_max_check:
-                            max_emotion_score = max(all_scores_for_max_check)
-                            if max_emotion_score > 0:
-                                max_emotion_index = all_scores_for_max_check.index(max_emotion_score)
-                                max_emotion_name, _, max_emotion_color = relevant_emotions_config[max_emotion_index]
-                                led_controller.set_goal_color(max_emotion_color, emotion_name=max_emotion_name)
-                                print(f"[{time.monotonic() - current_cycle_log_time_ref:.3f}s] Dominant Emotion for LED: {max_emotion_name} ({max_emotion_score:.3f})")
-                            # else:
-                                # print(f"[{time.monotonic() - current_cycle_log_time_ref:.3f}s] No dominant emotion above threshold.")
+                        # New logic with thresholding and blinking
+                        strong_emotions = []
+                        for name, score, color_rgb in emotion_bar_data:
+                            if score >= EMOTION_THRESHOLD:
+                                strong_emotions.append({'name': name, 'score': score, 'color': color_rgb})
+                        
+                        # Sort by score descending
+                        strong_emotions.sort(key=lambda x: x['score'], reverse=True)
+
+                        if not strong_emotions:
+                            # No emotion above threshold
+                            led_controller.set_goal_color(WHITE_COLOR, emotion_name="Neutral")
+                            print(f"[{time.monotonic() - current_cycle_log_time_ref:.3f}s] No emotions above threshold {EMOTION_THRESHOLD}. Setting LED to White.")
+                        elif len(strong_emotions) == 1:
+                            # One dominant emotion
+                            emotion = strong_emotions[0]
+                            led_controller.set_goal_color(emotion['color'], emotion_name=emotion['name'])
+                            print(f"[{time.monotonic() - current_cycle_log_time_ref:.3f}s] Dominant Emotion for LED: {emotion['name']} ({emotion['score']:.3f})")
+                        else: # Two or more emotions above threshold
+                            emotion1 = strong_emotions[0]
+                            emotion2 = strong_emotions[1]
+                            if hasattr(led_controller, 'set_blinking_colors'):
+                                led_controller.set_blinking_colors(
+                                    emotion1['color'], 
+                                    emotion2['color'],
+                                    emotion_name_one=emotion1['name'],
+                                    emotion_name_two=emotion2['name']
+                                )
+                                print(f"[{time.monotonic() - current_cycle_log_time_ref:.3f}s] Blinking between: {emotion1['name']} ({emotion1['score']:.3f}) and {emotion2['name']} ({emotion2['score']:.3f})")
+                            else: # Fallback if method somehow doesn't exist (should not happen)
+                                led_controller.set_goal_color(emotion1['color'], emotion_name=emotion1['name'])
+                                print(f"[{time.monotonic() - current_cycle_log_time_ref:.3f}s] (Fallback) Dominant Emotion for LED: {emotion1['name']} ({emotion1['score']:.3f}) - Blinking not available.")
+                        
+                        # Old logic commented out / removed
+                        # if all_scores_for_max_check:
+                        #     max_emotion_score = max(all_scores_for_max_check)
+                        #     if max_emotion_score > 0: # Original check, now handled by threshold
+                        #         max_emotion_index = all_scores_for_max_check.index(max_emotion_score)
+                        #         max_emotion_name, _, max_emotion_color = relevant_emotions_config[max_emotion_index]
+                        #         led_controller.set_goal_color(max_emotion_color, emotion_name=max_emotion_name)
+                        #         print(f"[{time.monotonic() - current_cycle_log_time_ref:.3f}s] Dominant Emotion for LED: {max_emotion_name} ({max_emotion_score:.3f})")
                         # else:
                             # print(f"[{time.monotonic() - current_cycle_log_time_ref:.3f}s] No scores available.")
 

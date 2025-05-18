@@ -24,6 +24,16 @@ class LEDController:
         self.update_task = None
         self.emotion_bars_canvas_items = [] # To keep track of drawn bar items
 
+        # Blinking state
+        self.is_blinking = False
+        self.blink_color_one = None
+        self.blink_color_two = None
+        self.blink_emotion_name_one = ""
+        self.blink_emotion_name_two = ""
+        self.blink_interval = 0.75  # seconds
+        self.last_blink_switch_time = 0
+        self.current_blink_is_one = True # True if currently targeting blink_color_one
+
         if self.is_virtual:
             self.root = tk.Tk()
             self.root.title("Emotion Visualizer")
@@ -57,6 +67,21 @@ class LEDController:
         while True:
             loop_start_time = time.monotonic()
 
+            # --- Blinking Logic ---
+            if self.is_blinking:
+                if (loop_start_time - self.last_blink_switch_time) >= self.blink_interval:
+                    self.current_blink_is_one = not self.current_blink_is_one
+                    if self.current_blink_is_one:
+                        self.active_goal_color = list(map(float, self.blink_color_one))
+                        self.current_emotion_name = self.blink_emotion_name_one
+                    else:
+                        self.active_goal_color = list(map(float, self.blink_color_two))
+                        self.current_emotion_name = self.blink_emotion_name_two
+                    
+                    self.transition_start_color = list(self.current_unmodulated_color)
+                    self.transition_step = 0
+                    self.last_blink_switch_time = loop_start_time
+            
             # --- Color Transition Logic ---
             if self.active_goal_color is not None:
                 if self.transition_step < self.total_transition_steps:
@@ -92,11 +117,18 @@ class LEDController:
                 self.led_canvas.itemconfig(self.virtual_led, fill=self.rgb_to_hex(modulated_color))
                 
                 label_text = self.current_emotion_name
-                if self.active_goal_color is not None:
+                if self.is_blinking:
+                    if self.current_blink_is_one:
+                        other_emotion_name = self.blink_emotion_name_two
+                    else:
+                        other_emotion_name = self.blink_emotion_name_one
+                    label_text = f"Blinking: {self.current_emotion_name} & {other_emotion_name}"
+                    if self.transition_step < self.total_transition_steps:
+                         label_text += f" ({(self.transition_step/self.total_transition_steps)*100:.0f}%)"
+
+                elif self.active_goal_color is not None:
                     if self.transition_step < self.total_transition_steps:
                         label_text = f"{self.current_emotion_name} ({(self.transition_step/self.total_transition_steps)*100:.0f}%)"
-                    else:
-                        label_text = f"{self.current_emotion_name} (Ready)"
                 else:
                      label_text = "Idle"
                 self.emotion_label.config(text=label_text)
@@ -119,6 +151,11 @@ class LEDController:
         # Ensure color is a list of floats
         target_color_float = list(map(float, color))
 
+        # Disable blinking if a specific goal color is set
+        if self.is_blinking:
+            self.is_blinking = False
+            # print("Blinking disabled due to new goal color.")
+
         # Check if the goal is truly new to avoid restarting transition unnecessarily
         if self.active_goal_color == target_color_float and self.current_emotion_name == emotion_name:
             # If we are already at the goal and name is same, ensure transition is marked complete
@@ -135,6 +172,32 @@ class LEDController:
         self.transition_step = 0 # Reset transition
         
         self.start_update_task() # Ensure the animation loop is running
+
+    def set_blinking_colors(self, color_one, color_two, emotion_name_one="", emotion_name_two="", interval=0.75):
+        if not self.is_blinking or \
+           self.blink_color_one != list(map(float, color_one)) or \
+           self.blink_color_two != list(map(float, color_two)) or \
+           self.blink_interval != interval:
+            
+            print(f"Setting blinking between {emotion_name_one} {color_one} and {emotion_name_two} {color_two}")
+            self.is_blinking = True
+            self.blink_color_one = list(map(float, color_one))
+            self.blink_color_two = list(map(float, color_two))
+            self.blink_emotion_name_one = emotion_name_one
+            self.blink_emotion_name_two = emotion_name_two
+            self.blink_interval = interval
+            
+            # Initialize the first blink target
+            self.current_blink_is_one = True
+            self.active_goal_color = list(self.blink_color_one)
+            self.current_emotion_name = self.blink_emotion_name_one
+            self.transition_start_color = list(self.current_unmodulated_color)
+            self.transition_step = 0
+            self.last_blink_switch_time = time.monotonic() # Start interval timer
+
+            self.start_update_task() # Ensure the animation loop is running
+        # else:
+            # print("Blinking parameters are already set.")
 
     def update_emotion_bars(self, emotion_data):
         if not self.is_virtual or not hasattr(self, 'bars_canvas'):
