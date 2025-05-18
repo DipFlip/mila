@@ -4,7 +4,9 @@ import soundfile as sf
 import base64
 import websockets.exceptions
 import numpy as np
-import threading
+import collections
+import sys
+import time
 from hume import HumeStreamClient
 from hume.models.config import BurstConfig, ProsodyConfig
 from led_controller import LEDController
@@ -24,35 +26,27 @@ emotion_colors = {
     'Sadness': (0, 0, 255)
 }
 
-samplerate = 16000  # Hertz
-duration = 3  # seconds
-filename = 'output.wav'
+# Audio recording parameters
+SAMPLERATE = 16000  # Hertz
+CHANNELS = 1
+WINDOW_DURATION = 3  # seconds: The duration of audio to analyze
+STEP_DURATION = 1    # seconds: How often to analyze a new window
+WINDOW_SAMPLES = SAMPLERATE * WINDOW_DURATION
+FILENAME = 'output_chunk.wav' # Filename for temporary audio chunks
 
-# Function to record audio in a separate thread
-def thread_record_audio(duration, samplerate, filename):
-    myrecording = sd.rec(int(samplerate * duration), samplerate=samplerate, channels=1, blocking=False)
-    # await asyncio.sleep(duration)
-    print("Recording complete. Saving the audio as output.wav")
-    sf.write(filename, myrecording, samplerate)
+# Global circular buffer for audio
+audio_buffer = collections.deque(maxlen=WINDOW_SAMPLES)
 
-async def record_audio(duration, samplerate, filename):
-    loop = asyncio.get_running_loop()
-    event = asyncio.Event()
-
-    def callback(indata, frames, time, status):
-        if status:
-            print(status, file=sys.stderr)
-        loop.call_soon_threadsafe(event.set)
-
-    with sd.InputStream(samplerate=samplerate, channels=1, callback=callback):
-        await event.wait()  # Wait until the first callback is invoked
-        myrecording = sd.rec(int(samplerate * duration), samplerate=samplerate, channels=1)
-        await asyncio.sleep(duration)  # Wait for the duration of the recording
-        sf.write(filename, myrecording, samplerate)
+# Callback function for the audio stream
+def stream_audio_callback(indata, frames, time_info, status):
+    """This is called (from a separate thread) for each audio block."""
+    if status:
+        print(status, file=sys.stderr)
+    audio_buffer.extend(indata.flatten())
 
 # Function to encode audio (base64 encoding)
-def encode_audio(filename):
-    with open(filename, 'rb') as audio_file:
+def encode_audio(filename_to_encode): # Renamed parameter for clarity
+    with open(filename_to_encode, 'rb') as audio_file:
         return base64.b64encode(audio_file.read())
 
 load_dotenv()
@@ -67,81 +61,138 @@ async def main():
     burst_config = BurstConfig()
     prosody_config = ProsodyConfig()
 
-    while True:
-        try:
-            async with client.connect([burst_config, prosody_config]) as socket:
-                while True:
-                    print(f"Recording for {duration} seconds...")
-                    # Create and start the recording thread
-                    # recording_thread = threading.Thread(target=thread_record_audio, args=(duration, samplerate, filename))
-                    # recording_thread.start()
-                    await record_audio(duration, samplerate, filename)
+    stream = sd.InputStream(
+        samplerate=SAMPLERATE,
+        channels=CHANNELS,
+        callback=stream_audio_callback,
+        blocksize=int(SAMPLERATE * 0.1)  # Smaller blocks for faster buffer fill
+    )
 
-                    # Join the thread to ensure it completes
-                    # recording_thread.join()
+    try:
+        stream.start()
+        print("Audio stream started.")
+        print(f"Buffering initial {WINDOW_DURATION} seconds of audio...")
 
-                    encoded_audio = encode_audio(filename)
-                    await socket.reset_stream()
-                    result = await socket.send_bytes(encoded_audio)
-                    print("Received response from Hume")
+        # Wait for the buffer to fill initially
+        while len(audio_buffer) < WINDOW_SAMPLES:
+            await asyncio.sleep(0.1)
+        print("Initial audio buffer filled. Starting analysis loop.")
 
-                    if not 'predictions' in result['prosody']:
-                        print('no prediction')
-                        continue
-                    emotions = result['prosody']['predictions'][0]['emotions']
-                    
-                    # Define the emotions we are interested in and their corresponding indices in the Hume API response
-                    # Mapping: Name, Hume Index, Display Color (RGB)
-                    # Note: Using the same colors as defined in `emotion_colors` for consistency
-                    relevant_emotions_config = [
-                        ('Anger', 4, emotion_colors['Anger']),
-                        ('Calmness', 9, emotion_colors['Calmness']),
-                        ('Embarrassment', 22, emotion_colors['Embarrassment']),
-                        ('Excitement', 26, emotion_colors['Excitement']),
-                        ('Romance', 38, emotion_colors['Romance']),
-                        ('Sadness', 39, emotion_colors['Sadness'])
-                        # Add more emotions here if needed, following the pattern: (Name, HumeIndex, RGB_Color)
-                    ]
+        last_analysis_start_time = time.monotonic() # Initialize before the loop
 
-                    emotion_bar_data = []
-                    all_scores_for_max_check = [] # To find the max emotion for the main LED
-
-                    print("\n--- Hume API Response Processed ---")
-                    for name, hume_index, color_rgb in relevant_emotions_config:
-                        score = 0.0
-                        if hume_index < len(emotions):
-                            score = emotions[hume_index]['score']
-                        else:
-                            print(f"Warning: Hume index {hume_index} for {name} is out of bounds.")
+        while True:
+            try:
+                async with client.connect([burst_config, prosody_config]) as socket:
+                    print("Successfully connected to Hume API.")
+                    last_analysis_start_time = time.monotonic() # Reset for each new connection cycle
+                    while True:
+                        loop_start_time = time.monotonic()
                         
-                        emotion_bar_data.append((name, score, color_rgb))
-                        all_scores_for_max_check.append(score)
-                        # print(f"{name}: {score:.3f}") # Replaced by graphical bars
-
-                    # Update the graphical emotion bars
-                    if hasattr(led_controller, 'update_emotion_bars'):
-                        led_controller.update_emotion_bars(emotion_bar_data)
-                    
-                    # Determine the dominant emotion for the main LED
-                    if all_scores_for_max_check:
-                        max_emotion_score = max(all_scores_for_max_check)
-                        max_emotion_index = all_scores_for_max_check.index(max_emotion_score)
-                        max_emotion_name, _, max_emotion_color = relevant_emotions_config[max_emotion_index]
+                        # Calculate time to sleep to maintain STEP_DURATION interval
+                        # This accounts for the processing time of the previous iteration.
+                        # On the very first iteration of this inner loop, time_since_last_analysis might be large
+                        # if connection took time, but subsequent ones will be anchored by STEP_DURATION.
+                        time_since_last_analysis = loop_start_time - last_analysis_start_time
+                        sleep_needed = STEP_DURATION - time_since_last_analysis
                         
-                        print(f"Dominant Emotion for LED: {max_emotion_name} ({max_emotion_score:.3f})")
-                        led_controller.set_goal_color(max_emotion_color, emotion_name=max_emotion_name)
-                    else:
-                        print("No scores available to determine dominant emotion.")
-                        # Optionally, set a default color or state for the LED
-                        # led_controller.set_goal_color((100, 100, 100), emotion_name="Neutral")
+                        if sleep_needed > 0:
+                            await asyncio.sleep(sleep_needed)
+                        
+                        # Update last_analysis_start_time for the *next* iteration's calculation
+                        # It marks the effective start of this processing window.
+                        last_analysis_start_time = time.monotonic() # This is the true start for this cycle
+                        current_cycle_log_time_ref = last_analysis_start_time
 
-                    # The old text-based printing loop has been removed.
-                    # The max emotion logic for the main LED is now integrated above.
+                        if len(audio_buffer) < WINDOW_SAMPLES:
+                            print(f"[{time.monotonic() - current_cycle_log_time_ref:.3f}s] Waiting for more audio data...")
+                            await asyncio.sleep(0.1) 
+                            last_analysis_start_time = time.monotonic() # Reset if we had to wait extra
+                            continue
+                        
+                        current_audio_window = np.array(list(audio_buffer))
+                        sf.write(FILENAME, current_audio_window, SAMPLERATE)
+                        # print(f"[{time.monotonic() - current_cycle_log_time_ref:.3f}s] Audio chunk saved.")
+                        
+                        encoded_audio = encode_audio(FILENAME)
+                        print(f"[{time.monotonic() - current_cycle_log_time_ref:.3f}s] Audio encoded. Sending to Hume...")
+                        
+                        hume_send_time = time.monotonic()
+                        await socket.reset_stream()
+                        result = await socket.send_bytes(encoded_audio)
+                        hume_receive_time = time.monotonic()
+                        print(f"[{hume_receive_time - current_cycle_log_time_ref:.3f}s] Received response from Hume. API call took: {hume_receive_time - hume_send_time:.3f}s.")
 
-        except websockets.exceptions.ConnectionClosedError:
-            print("Connection was closed unexpectedly. Trying to reconnect in 5 seconds...")
-            await asyncio.sleep(3)
+                        if 'prosody' not in result or 'predictions' not in result['prosody'] or not result['prosody']['predictions']:
+                            print(f"[{time.monotonic() - current_cycle_log_time_ref:.3f}s] No prosody predictions.")
+                            continue
+                        
+                        emotions = result['prosody']['predictions'][0]['emotions']
+                        
+                        relevant_emotions_config = [
+                            ('Anger', 4, emotion_colors['Anger']),
+                            ('Calmness', 9, emotion_colors['Calmness']),
+                            ('Embarrassment', 22, emotion_colors['Embarrassment']),
+                            ('Excitement', 26, emotion_colors['Excitement']),
+                            ('Romance', 38, emotion_colors['Romance']),
+                            ('Sadness', 39, emotion_colors['Sadness'])
+                        ]
+
+                        emotion_bar_data = []
+                        all_scores_for_max_check = []
+
+                        for name, hume_index, color_rgb in relevant_emotions_config:
+                            score = 0.0
+                            matching_emotion = next((e for e in emotions if e['name'].lower() == name.lower()), None)
+                            if matching_emotion:
+                                score = matching_emotion['score']
+                            else:
+                                if hume_index < len(emotions):
+                                    score = emotions[hume_index]['score'] 
+                                # else:
+                                    # print(f"Warning: Hume index {hume_index} for {name} out of bounds.") # Less verbose
+                            
+                            emotion_bar_data.append((name, score, color_rgb))
+                            all_scores_for_max_check.append(score)
+
+                        if hasattr(led_controller, 'update_emotion_bars'):
+                            led_controller.update_emotion_bars(emotion_bar_data)
+                        
+                        if all_scores_for_max_check:
+                            max_emotion_score = max(all_scores_for_max_check)
+                            if max_emotion_score > 0:
+                                max_emotion_index = all_scores_for_max_check.index(max_emotion_score)
+                                max_emotion_name, _, max_emotion_color = relevant_emotions_config[max_emotion_index]
+                                led_controller.set_goal_color(max_emotion_color, emotion_name=max_emotion_name)
+                                print(f"[{time.monotonic() - current_cycle_log_time_ref:.3f}s] Dominant Emotion for LED: {max_emotion_name} ({max_emotion_score:.3f})")
+                            # else:
+                                # print(f"[{time.monotonic() - current_cycle_log_time_ref:.3f}s] No dominant emotion above threshold.")
+                        # else:
+                            # print(f"[{time.monotonic() - current_cycle_log_time_ref:.3f}s] No scores available.")
+
+                        # The dynamic sleep is now at the beginning of the loop iteration,
+                        # ensuring the *start* of each cycle is STEP_DURATION apart.
+
+            except websockets.exceptions.ConnectionClosedError:
+                print("Hume connection closed. Reconnecting in 3 seconds...")
+                await asyncio.sleep(3)
+            except Exception as e:
+                print(f"An error occurred in the main processing loop: {e}")
+                print("Attempting to reset connection in 5 seconds...")
+                await asyncio.sleep(5)
+    
+    finally:
+        print("Stopping audio stream...")
+        stream.stop()
+        stream.close()
+        print("Audio stream stopped.")
+        if hasattr(led_controller, 'stop_update_task'):
+            await led_controller.stop_update_task()
+
 
 # Run the 'main' coroutine
 if __name__ == '__main__':
-    asyncio.run(main())
+    if not hume_stream_client_key:
+        print("Error: HUME_STREAM_CLIENT_KEY environment variable not set.")
+        print("Please set it in your .env file or environment.")
+    else:
+        asyncio.run(main())

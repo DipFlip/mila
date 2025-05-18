@@ -2,3 +2,4 @@ output.wav
 .aider*
 __pycache__/
 .env
+output_chunk.wav
