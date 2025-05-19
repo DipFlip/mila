@@ -47,7 +47,7 @@ emotion_colors = {
 }
 
 # Audio recording parameters - aligned with virtual LED script
-SAMPLERATE = 16000  # Hertz
+SAMPLERATE = 44100  # Hertz
 CHANNELS = 1
 WINDOW_DURATION = 3  # seconds: The duration of audio to analyze
 STEP_DURATION = 1    # seconds: How often to analyze a new window
@@ -92,9 +92,16 @@ async def main():
             blocksize=int(SAMPLERATE * 0.1)  # Smaller blocks for faster buffer fill
         )
     except sd.PortAudioError as e:
-        if e.args[1] == sd.PaErrorCode.paInvalidSampleRate:
+        # Check for paInvalidSampleRate, which has an error code of -9997
+        if len(e.args) > 1 and e.args[1] == -9997: # paInvalidSampleRate
             print(f"Error: The configured SAMPLERATE ({SAMPLERATE} Hz) is not supported by the microphone.")
-            print(f"Try changing SAMPLERATE in the script to the device's default sample rate (see above) or another supported rate.")
+            device_info_msg = "Could not query device info for suggestion."
+            try:
+                dev_info = sd.query_devices(1, 'input')
+                device_info_msg = f"Try changing SAMPLERATE in the script to the device's default sample rate ({dev_info['default_samplerate']} Hz) or another supported rate."
+            except Exception:
+                pass # Keep the generic message
+            print(device_info_msg)
         else:
             print(f"PortAudioError opening stream: {e}")
         sys.exit(1)
