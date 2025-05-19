@@ -21,6 +21,17 @@ print("Available audio devices:")
 print(sd.query_devices())
 print("-------------------------")
 
+# Query and print capabilities of device 1 (USB PnP Sound Device)
+try:
+    device_info = sd.query_devices(1, 'input')
+    print(f"Capabilities of 'USB PnP Sound Device' (device 1):")
+    print(f"  Default sample rate: {device_info['default_samplerate']} Hz")
+    # Note: sd.query_devices doesn't always list all supported sample rates directly.
+    # For more detailed info, 'arecord --dump-hw-params -D hw:1,0' can be used in terminal.
+except Exception as e:
+    print(f"Could not query device 1: {e}")
+print("-------------------------")
+
 # define LED for Raspberry Pi
 led = RGBLED(14, 15, 18, active_high=False)
 led_controller = LEDController(led, is_virtual=False)
@@ -72,13 +83,24 @@ async def main():
     prosody_config = ProsodyConfig()
 
     # Audio stream setup - from virtual LED script
-    stream = sd.InputStream(
-        device=1, # Explicitly select the USB microphone by its index
-        samplerate=SAMPLERATE,
-        channels=CHANNELS,
-        callback=stream_audio_callback,
-        blocksize=int(SAMPLERATE * 0.1)  # Smaller blocks for faster buffer fill
-    )
+    try:
+        stream = sd.InputStream(
+            device=1, # Explicitly select the USB microphone by its index
+            samplerate=SAMPLERATE,
+            channels=CHANNELS,
+            callback=stream_audio_callback,
+            blocksize=int(SAMPLERATE * 0.1)  # Smaller blocks for faster buffer fill
+        )
+    except sd.PortAudioError as e:
+        if e.args[1] == sd.PaErrorCode.paInvalidSampleRate:
+            print(f"Error: The configured SAMPLERATE ({SAMPLERATE} Hz) is not supported by the microphone.")
+            print(f"Try changing SAMPLERATE in the script to the device's default sample rate (see above) or another supported rate.")
+        else:
+            print(f"PortAudioError opening stream: {e}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error setting up audio stream: {e}")
+        sys.exit(1)
 
     try:
         stream.start()
