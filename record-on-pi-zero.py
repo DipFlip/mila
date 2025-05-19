@@ -145,6 +145,9 @@ async def main():
                         
                         current_audio_window = np.array(list(audio_buffer))
                         sf.write(FILENAME, current_audio_window, SAMPLERATE)
+                        # Check for silence in the audio chunk
+                        if np.allclose(current_audio_window, 0, atol=1e-4):
+                            print("[ERROR] The recorded audio chunk is completely silent. Check your microphone and audio input settings.")
                         # print(f"[{time.monotonic() - current_cycle_log_time_ref:.3f}s] Audio chunk saved.")
                         
                         encoded_audio = encode_audio(FILENAME)
