@@ -137,6 +137,12 @@ class LEDController:
                 self.root.update_idletasks() # Process pending operations like layout changes
                 self.root.update()          # Process all other events and redraw
 
+            # --- Physical LED Update ---
+            if not self.is_virtual and self.led is not None:
+                # Convert 0-255 to 0-1 for gpiozero
+                scaled_color = tuple(max(0, min(1, c / 255.0)) for c in modulated_color)
+                self.led.color = scaled_color
+
             # --- Frame Delay Management ---
             elapsed_loop_time = time.monotonic() - loop_start_time
             sleep_duration = self.frame_delay - elapsed_loop_time
