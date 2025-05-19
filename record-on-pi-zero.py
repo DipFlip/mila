@@ -73,7 +73,7 @@ async def main():
 
     # Audio stream setup - from virtual LED script
     stream = sd.InputStream(
-        device="USB PnP Sound Device", # Explicitly select the USB microphone
+        device=1, # Explicitly select the USB microphone by its index
         samplerate=SAMPLERATE,
         channels=CHANNELS,
         callback=stream_audio_callback,
