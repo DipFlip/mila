@@ -16,6 +16,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Print available audio devices
+print("Available audio devices:")
+print(sd.query_devices())
+print("-------------------------")
+
 # define LED for Raspberry Pi
 led = RGBLED(14, 15, 18, active_high=False)
 led_controller = LEDController(led, is_virtual=False)
@@ -68,6 +73,7 @@ async def main():
 
     # Audio stream setup - from virtual LED script
     stream = sd.InputStream(
+        device="USB PnP Sound Device", # Explicitly select the USB microphone
         samplerate=SAMPLERATE,
         channels=CHANNELS,
         callback=stream_audio_callback,
